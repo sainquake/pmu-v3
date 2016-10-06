@@ -24,5 +24,9 @@ sbit DX1 = P2^0;
 sbit DX2 = P2^1;
 sbit DX3 = P2^2;
 
+void UART0_Init (void);
+void PORT_Init_UART0 (void);
+void OSCILLATOR_Init (void);
+
 
 #endif
