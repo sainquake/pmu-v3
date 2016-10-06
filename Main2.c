@@ -462,7 +462,7 @@ void PCA0_ISR (void) interrupt 9
 		if(chgCurrent>maxChg)
 			maxChg = chgCurrent;
 		
-		current =	(cx[0]+cx[1]+cx[2]+cx[3])*30000/820/1000;//*0.3758-17.395;//+cx[2]+cx[3]
+		current =	chgCurrent;//(cx[0]+cx[1]+cx[2]+cx[3])*30000/820/1000;//*0.3758-17.395;//+cx[2]+cx[3]
 		if(current<0)
 			current = 0;
 		smoothCurrent = ( smoothCurrent*9 + current )/10;
