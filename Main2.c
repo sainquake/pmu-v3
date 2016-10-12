@@ -19,6 +19,7 @@ xdata float cx[4];
 xdata float current;
 xdata float smoothCurrent;
 xdata float smoothCurrentMax;
+xdata float Wh;
 
 xdata float cap;
 xdata char SteckPoint;
@@ -122,7 +123,6 @@ void main (void)
 				NPackage = BuferFromModem[rBFM] & 0x3f;
 			}
 
-
 			RK_code[nByte] = BuferFromModem[rBFM] & 0x7f;
 			KontrSumma = KontrSumma^RK_code[nByte];
 			if (++nByte > 65)
@@ -138,7 +138,6 @@ void main (void)
 				{
 					rgAnswer = 2;
 					startDvs=1;
-
 				}
 				if (NPackage == 3)//stop dvs
 				{
@@ -160,7 +159,6 @@ void main (void)
 			flRun = 0;
 		}
 		//	rgAnswer = 1;
-		
 		if(flTransmiter)
 		;
 		else
@@ -223,8 +221,6 @@ void UART0_isr(void) interrupt 4
 	SFRPAGE = SFRPAGE_SAVE;
 	return;
 }
-
-
 //xdata float ttt=0;
 //-------PCA Interrupt 400 Hz
 void PCA0_ISR (void) interrupt 9
@@ -314,6 +310,12 @@ void PCA0_ISR (void) interrupt 9
 	//--------400Hz sampling-----------//
 	//flRun = 1;
 	if(phase==0){
+		//measure voltage prop. to ICE current 
+		tmp = analogRead(5);
+		chgCurrent = (tmp*3120.0/4095-1664)/10;
+		if(chgCurrent>maxChg)
+			maxChg = chgCurrent;
+		//measure voltage proportional to current from BTS555
 		tmp = analogRead(2);//2
 		cx[3] = tmp*3120.0/4095;//*17.1/1.1*28500/5900/1000;
 
@@ -325,25 +327,23 @@ void PCA0_ISR (void) interrupt 9
 
 		tmp = analogRead(0);
 		cx[0] = tmp*3120.0/4095;
-
-		tmp = analogRead(5);
-		chgCurrent = (tmp*3120.0/4095-1664)/10;
-		if(chgCurrent>maxChg)
-			maxChg = chgCurrent;
-		
+		//calc total current 
 		current =	chgCurrent;//(cx[0]+cx[1]+cx[2]+cx[3])*30000/820/1000;//*0.3758-17.395;//+cx[2]+cx[3]
 		if(current<0)
 			current = 0;
+		//apply an floating avg
 		smoothCurrent = ( smoothCurrent*9 + current )/10;
+		//mind maxima current
 		if( smoothCurrentMax < smoothCurrent )
 			smoothCurrentMax = smoothCurrent;
+		//calc integral current consumption
 		cap += current/200/3600;
-
+		//measure temperature on ICE
 		tmp = analogRead(6);
 		rtemp = tmp*3120.0/4095/1000;
 		rtemp = 3.3*1.2/rtemp-1.2;
 		temperature = 79*rtemp-53;
-
+		//measure handle controller
 		tmp = analogRead(4);
 		if(startDvs==1){
 			tmp= 600;
@@ -384,6 +384,8 @@ void PCA0_ISR (void) interrupt 9
 			flMem = 1;
 		bat[3] = ( bat[3]*9 + 25.0/25.8*tmp*3120.0/4095*(3+22)/3.0/1000 )/10;
 		bat3_pr = bat[3];
+
+		Wh = cap*bat[3];
 		flRun = 1;
 	}
 
