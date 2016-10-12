@@ -18,6 +18,8 @@ xdata float bat3_pr;
 xdata float cx[4];
 xdata float current;
 xdata float smoothCurrent;
+xdata float smoothCurrentMax;
+
 xdata float cap;
 xdata char SteckPoint;
 xdata float chgCurrent;
@@ -94,7 +96,7 @@ void main (void)
 		bat[i] =0;// cell[i] = 0;
 		for(i = 0; i < 4; i++)
 		cx[i] = 0;
-		current = smoothCurrent = cap = 0;
+		current = smoothCurrent = cap = smoothCurrentMax = 0;
 		chgCurrent = 0;
 		maxChg = 0;
 	}
@@ -333,6 +335,8 @@ void PCA0_ISR (void) interrupt 9
 		if(current<0)
 			current = 0;
 		smoothCurrent = ( smoothCurrent*9 + current )/10;
+		if( smoothCurrentMax < smoothCurrent )
+		smoothCurrentMax = smoothCurrent;
 		cap += current/200/3600;
 
 		tmp = analogRead(6);
@@ -361,7 +365,7 @@ void PCA0_ISR (void) interrupt 9
 
 		if(tmp>500 ){//&& tmp<1000)
 
-			pwm2 = 1950*PCA0_MKS;//starter
+			pwm2 = 1500*PCA0_MKS;//starter
 		}else{
 			pwm2 = 700*PCA0_MKS;
 		}
@@ -389,8 +393,8 @@ void PCA0_ISR (void) interrupt 9
 
 		if(temperature>50){
 			pwm4 = (750)*PCA0_MKS;
-		}else if(temperature>90){
-			pwm4 = (750+(temperature-90)*65)*PCA0_MKS;//cooler
+		}else if(temperature>50){
+			pwm4 = (750+(temperature-50)*200)*PCA0_MKS;//cooler
 		}else{
 			pwm4 = 700*PCA0_MKS;//cooler
 		}
