@@ -336,7 +336,7 @@ void PCA0_ISR (void) interrupt 9
 			current = 0;
 		smoothCurrent = ( smoothCurrent*9 + current )/10;
 		if( smoothCurrentMax < smoothCurrent )
-		smoothCurrentMax = smoothCurrent;
+			smoothCurrentMax = smoothCurrent;
 		cap += current/200/3600;
 
 		tmp = analogRead(6);
@@ -347,21 +347,12 @@ void PCA0_ISR (void) interrupt 9
 		tmp = analogRead(4);
 		if(startDvs==1){
 			tmp= 600;
-			//sm= 600;
 		}
 
-		//sm = (sm*9 + tmp)/10;
-		//
-		//
-		//1500*PCA0_MKS;//
-		//pwm = ( pwm*99 + (tmp*900.0/1500*3120/4095+1000.0)*PCA0_MKS )/100;
-		/*bat[0] = tmp*3.8*3120/4095/(2.7)*0.9850/1000;
-			cell[0] = bat[0];*/
-
-		if(tmp>500  )//&& tmp<1000)
-		pwm1 = 1200*PCA0_MKS;//plug
+		/*if(tmp>500  )//&& tmp<1000)
+			pwm1 = 1200*PCA0_MKS;//plug
 		else
-		pwm1 = 0;//plug
+			pwm1 = 0;//plug*/
 
 		if(tmp>500 ){//&& tmp<1000)
 
@@ -377,19 +368,6 @@ void PCA0_ISR (void) interrupt 9
 		}else{
 			pwm3 = 1320*PCA0_MKS;//0//1320*/
 		}
-		/*if(tmp>1000 && tmp<2200)
-				pwm3 = 860*PCA0_MKS;//(1050-(sm-1000)/8)*PCA0_MKS;*/
-
-
-		/*if(tmp>500){//&& tmp<1000)
-			
-			if(chgCurrent>1)
-			pwm4 = 1200*PCA0_MKS;//cooler
-			else
-			pwm4 = 800*PCA0_MKS;//cooler
-		}else{
-			pwm4 = 700*PCA0_MKS;
-		}*/
 
 		if(temperature>50){
 			pwm4 = (750)*PCA0_MKS;
