@@ -18,11 +18,13 @@ sfr16 TMR2     = 0xcc;                 // Timer2
 #define SYSCLK       (22118400L * 9 / 4)
 
 sbit AX1 = P1^6; 
-sbit AX2 = P1^7; 
+sbit AX2 = P1^5;//P1^7;//servo 
 
 sbit DX1 = P2^0;
-sbit DX2 = P2^1;
-sbit DX3 = P2^2;
+sbit DX2 = P1^6;//P2^1;//starter
+sbit DX3 = P1^7;//P2^2;//cooler
+
+sbit BLINK = P7^0;
 
 void UART0_Init (void);
 void PORT_Init_UART0 (void);

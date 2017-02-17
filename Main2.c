@@ -13,7 +13,7 @@
 // Function Prototypes
 //-----------------------------------------------------------------------------
 
-xdata float bat[9];	
+xdata float bat;	
 xdata float bat3_pr;
 xdata float cx[4];
 xdata float current;
@@ -24,6 +24,7 @@ xdata float Wh;
 xdata float cap;
 xdata char SteckPoint;
 xdata float chgCurrent;
+xdata float chgCurrSmooth;
 xdata float maxChg;
 xdata float temperature;
 
@@ -94,12 +95,13 @@ void main (void)
 		flTransmiter = 0;
 		flMem = 0;
 		for (i = 0; i < 9; i++)
-		bat[i] =0;// cell[i] = 0;
+		bat =0;// cell[i] = 0;
 		for(i = 0; i < 4; i++)
 		cx[i] = 0;
 		current = smoothCurrent = cap = smoothCurrentMax = 0;
 		chgCurrent = 0;
 		maxChg = 0;
+		chgCurrSmooth=0;
 	}
 
 	//Watchdog Enable
@@ -168,7 +170,7 @@ void main (void)
 				rgAnswer = 0;	
 
 				BufferInModem[0] = 1 | 0x40;
-				OutModem2( 100*bat[3], 1);
+				OutModem2( 100*bat, 1);
 				OutModem2( 10*smoothCurrent, 3);
 				OutModem2( 10*cap, 5);
 				OutModem1( 4 | (char)flMem , 7);
@@ -313,6 +315,7 @@ void PCA0_ISR (void) interrupt 9
 		//measure voltage prop. to ICE current 
 		tmp = analogRead(5);
 		chgCurrent = (tmp*3120.0/4095-1664)/10;
+		chgCurrSmooth = (chgCurrSmooth*19 + chgCurrent)/20;
 		if(chgCurrent>maxChg)
 			maxChg = chgCurrent;
 		//measure voltage proportional to current from BTS555
@@ -328,7 +331,7 @@ void PCA0_ISR (void) interrupt 9
 		tmp = analogRead(0);
 		cx[0] = tmp*3120.0/4095;
 		//calc total current 
-		current =	chgCurrent;//(cx[0]+cx[1]+cx[2]+cx[3])*30000/820/1000;//*0.3758-17.395;//+cx[2]+cx[3]
+		current =	(cx[0]+cx[1]+cx[2]+cx[3])*30000.0/820.0/1000.0;//*0.3758-17.395;//+cx[2]+cx[3]
 		if(current<0)
 			current = 0;
 		//apply an floating avg
@@ -344,7 +347,7 @@ void PCA0_ISR (void) interrupt 9
 		rtemp = 3.3*1.2/rtemp-1.2;
 		temperature = 79*rtemp-53;
 		//measure handle controller
-		tmp = analogRead(4);
+		tmp = 0;//analogRead(4);
 		if(startDvs==1){
 			tmp= 600;
 		}
@@ -355,37 +358,40 @@ void PCA0_ISR (void) interrupt 9
 			pwm1 = 0;//plug*/
 
 		if(tmp>500 ){//&& tmp<1000)
-
 			pwm2 = 1500*PCA0_MKS;//starter
+			if(chgCurrSmooth>2)
+				pwm2 = 700*PCA0_MKS;
 		}else{
 			pwm2 = 700*PCA0_MKS;
 		}
-
 		if(tmp>500){// && tmp<1000)
-			pwm3 = 1150*PCA0_MKS;//holostoi//zaslonka//bilo1050
-			if(chgCurrent>1)
-				pwm3 = 1050*PCA0_MKS;
+			pwm3 = 1640*PCA0_MKS;//holostoi//zaslonka//bilo1050
+			if(chgCurrSmooth>2)
+				pwm3 = 1750*PCA0_MKS;
 		}else{
-			pwm3 = 1320*PCA0_MKS;//0//1320*/
+			pwm3 = 1200*PCA0_MKS;//0//1320*/
 		}
 
-		if(temperature>50){
+		if(temperature>40){
 			pwm4 = (750)*PCA0_MKS;
-		}else if(temperature>50){
-			pwm4 = (750+(temperature-50)*200)*PCA0_MKS;//cooler
 		}else{
 			pwm4 = 700*PCA0_MKS;//cooler
 		}
-		if(pwm4>2000*PCA0_MKS)
-			pwm4=2000*PCA0_MKS;
+		if(temperature>60){
+			pwm4 = (750+(temperature-50)*50)*PCA0_MKS;//cooler
+		}
+		if(pwm4>2200*PCA0_MKS)
+			pwm4=2200*PCA0_MKS;
 
-		tmp = analogRead(7);
-		if(bat[3] != bat3_pr)
+		//voltage
+		tmp = analogRead(4);
+		if(bat != bat3_pr)
 			flMem = 1;
-		bat[3] = ( bat[3]*9 + 25.0/25.8*tmp*3120.0/4095*(3+22)/3.0/1000 )/10;
-		bat3_pr = bat[3];
+		rtemp = 25.0/25.8*tmp*3120.0/4095.0*(3+22)/3.0/1000.0;
+		bat = ( bat*9 + rtemp )/10;
+		bat3_pr = bat;
 
-		Wh = cap*bat[3];
+		Wh = cap*bat;
 		flRun = 1;
 	}
 

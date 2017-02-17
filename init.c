@@ -83,8 +83,9 @@ void PORT_Init_UART0 (void)
 	
 
 	P0MDOUT |= 0x01;                    // Set TX pin to push-pull
-	P1MDOUT |= 0xc0;                    // Set P1.6(LED) to push-pull
+	P1MDOUT |= 0xE0;                    // Set P1.6(LED) to push-pull
 	P2MDOUT |= 0x07;
+	P7MDOUT |= 0x01;
 
 	SFRPAGE = SFRPAGE_SAVE;             // Restore SFR page
 }
