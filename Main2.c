@@ -174,7 +174,7 @@ void main (void)
 				if (NPackage == 7)//ICE injector set
 				{
 					
-					injector_pwm= ((int)RK_code[2])<<7 | (int)RK_code[3];
+					injector_pwm= ((int)RK_code[1])<<7 | (int)RK_code[2];
 				}
 			}
 			rBFM++;
