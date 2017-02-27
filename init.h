@@ -12,6 +12,7 @@ sfr16 TMR2     = 0xcc;                 // Timer2
 // Global Constants
 //-----------------------------------------------------------------------------
 
+#define INJECTOR_MIN 1500
 #define BAUDRATE     57600            // Baud rate of UART in bps
 
 // SYSCLK = System clock frequency in Hz

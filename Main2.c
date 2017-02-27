@@ -27,7 +27,9 @@ xdata float chgCurrent;
 xdata float chgCurrSmooth;
 xdata float maxChg;
 xdata float temperature;
+xdata unsigned int time;
 
+xdata float injector_pwm = INJECTOR_MIN;//1640
 xdata float pwm3 = 1000;
 xdata float pwm = 1000;
 xdata float pwm1 = 1000;
@@ -102,6 +104,7 @@ void main (void)
 		chgCurrent = 0;
 		maxChg = 0;
 		chgCurrSmooth=0;
+		time=0;
 	}
 
 	//Watchdog Enable
@@ -146,6 +149,33 @@ void main (void)
 					rgAnswer = 3;
 					startDvs=0;
 				}
+				if (NPackage == 4)//ICE telemetry
+				{
+					rgAnswer = 4;
+				}
+				if (NPackage == 5)//ICE injector ++
+				{
+					rgAnswer = 5;
+					injector_pwm+=10;
+				}
+				if (NPackage == 6)//ICE injector --
+				{
+					rgAnswer = 6;
+					injector_pwm-=10;
+				}
+				/*if (NPackage == 8)//ICE debug
+				{
+					rgAnswer = 8;
+				}*/
+				
+			}
+			if ( (nByte == 4) && (KontrSumma == 0) )
+			{
+				if (NPackage == 7)//ICE injector set
+				{
+					
+					injector_pwm= ((int)RK_code[2])<<7 | (int)RK_code[3];
+				}
 			}
 			rBFM++;
 			if(rBFM >= NBFM)
@@ -189,6 +219,33 @@ void main (void)
 				SFRPAGE = UART0_PAGE;
 				TI0 = 1;
 			} 
+			if(rgAnswer == 4)
+			{
+				rgAnswer = 0;	
+
+				BufferInModem[0] = 4 | 0x40;
+				OutModem2( 100*bat, 1);
+				OutModem2( 10*smoothCurrent, 3);
+				OutModem2( 10*cap, 5);
+				OutModem2( 100*chgCurrSmooth, 7);
+				OutModem2( 10*temperature, 9);
+				OutModem2( injector_pwm, 11);
+				OutModem1( startDvs , 13);
+				OutModem1( rst_src , 14);
+				OutModem1( rst_count , 15);
+
+				BufferInModem[16] = 0;
+				for (i = 0; i < 16; i++ )
+				BufferInModem[16] = BufferInModem[16] ^ BufferInModem[i];
+				OutModem1(BufferInModem[16], 16);
+				BufferInModem[17] = 0;
+				r0 = 0;
+				rk = 17;
+				
+				flTransmiter = 1;
+				SFRPAGE = UART0_PAGE;
+				TI0 = 1;
+			}
 		}
 
 	}//while(1)
@@ -313,11 +370,13 @@ void PCA0_ISR (void) interrupt 9
 	//flRun = 1;
 	if(phase==0){
 		//measure voltage prop. to ICE current 
-		tmp = analogRead(5);
-		chgCurrent = (tmp*3120.0/4095-1664)/10;
-		chgCurrSmooth = (chgCurrSmooth*19 + chgCurrent)/20;
+		tmp = analogRead(7);//old 5
+		chgCurrent = ( tmp*3120.0/4095.0)/10.0 - 165.62;
+		chgCurrSmooth = (chgCurrSmooth*19.0 + chgCurrent)/20.0;
 		if(chgCurrent>maxChg)
 			maxChg = chgCurrent;
+		if(chgCurrSmooth<0)
+			chgCurrSmooth = 0;
 		//measure voltage proportional to current from BTS555
 		tmp = analogRead(2);//2
 		cx[3] = tmp*3120.0/4095;//*17.1/1.1*28500/5900/1000;
@@ -326,7 +385,7 @@ void PCA0_ISR (void) interrupt 9
 		cx[2] = tmp*3120.0/4095;
 
 		tmp = analogRead(1);
-		cx[1] = 0;//tmp*3120.0/4095;
+		cx[1] = tmp*3120.0/4095;
 
 		tmp = analogRead(0);
 		cx[0] = tmp*3120.0/4095;
@@ -359,17 +418,23 @@ void PCA0_ISR (void) interrupt 9
 
 		if(tmp>500 ){//&& tmp<1000)
 			pwm2 = 1500*PCA0_MKS;//starter
-			if(chgCurrSmooth>2)
+			if(chgCurrSmooth>2){
 				pwm2 = 700*PCA0_MKS;
+				time=0;
+			}
 		}else{
 			pwm2 = 700*PCA0_MKS;
 		}
+		if(injector_pwm<1400)
+			injector_pwm=1400;
+		if(injector_pwm>2000)
+			injector_pwm=2000;
 		if(tmp>500){// && tmp<1000)
-			pwm3 = 1640*PCA0_MKS;//holostoi//zaslonka//bilo1050
+			pwm3 = injector_pwm*PCA0_MKS;//holostoi//zaslonka//bilo1050
 			if(chgCurrSmooth>2)
-				pwm3 = 1750*PCA0_MKS;
+				pwm3 = (injector_pwm)*PCA0_MKS;//1750*PCA0_MKS;
 		}else{
-			pwm3 = 1200*PCA0_MKS;//0//1320*/
+			pwm3 = 1200*PCA0_MKS;//1200*PCA0_MKS;//;1200*PCA0_MKS;//0//1320*/
 		}
 
 		if(temperature>40){
@@ -378,7 +443,7 @@ void PCA0_ISR (void) interrupt 9
 			pwm4 = 700*PCA0_MKS;//cooler
 		}
 		if(temperature>60){
-			pwm4 = (750+(temperature-50)*50)*PCA0_MKS;//cooler
+			pwm4 = (750+(temperature-60)*30)*PCA0_MKS;//cooler
 		}
 		if(pwm4>2200*PCA0_MKS)
 			pwm4=2200*PCA0_MKS;
@@ -393,6 +458,19 @@ void PCA0_ISR (void) interrupt 9
 
 		Wh = cap*bat;
 		flRun = 1;
+
+		SFRPAGE = 0x0f;
+		time++;
+		if(time>100)
+			BLINK = 0;
+		else 
+			BLINK = 1;
+		if(time>200){
+			//BLINK = 1;
+			time=0;
+		}
+		//BLINK=1;
+		SFRPAGE = PCA0_PAGE;
 	}
 
 	if (CountRun++ < 50)  
